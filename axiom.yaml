@@ -1,0 +1,69 @@
+name: christiangeorgelucas/password-strength-tools
+version: 0.1.0
+language: typescript
+description: >-
+  Composable Axiom password-strength-estimation nodes wrapping the MIT
+  zxcvbn-ts library (a TypeScript rewrite of Dropbox's zxcvbn algorithm) —
+  a realistic, pattern-aware strength score (0-4), estimated guesses and
+  crack-time estimates across four attack scenarios (online throttled,
+  online unthrottled, offline slow hashing, offline fast hashing),
+  actionable feedback (warning + suggestions), and the matched-pattern
+  breakdown (dictionary/spatial/repeat/sequence/date/regex matches) behind
+  the score, plus a pass/fail policy-gate node for signup/password-change
+  forms. Offline and fully deterministic given the bundled dictionaries —
+  no network calls, no persistence. This ESTIMATES strength only: it never
+  transmits, logs, or stores the password, and it is not a hash — pair it
+  with a real password hash (bcrypt/scrypt/argon2) for storage, this
+  package plays no part in that.
+license: MIT
+author: Christian George Lucas
+tags:
+  - password
+  - password-strength
+  - zxcvbn
+  - security
+  - authentication
+  - signup
+  - entropy
+  - crack-time
+nodes:
+    - name: EstimateStrength
+      description: >-
+        Full zxcvbn strength report for one password: a 0-4 score, the
+        estimated total guesses (and its log10), crack-time estimates
+        across four attack scenarios (online throttled 100/hr, online
+        unthrottled 10/s, offline slow-hash 1e4/s, offline fast-hash
+        1e10/s — each as seconds plus a human-readable string), actionable
+        feedback (a warning about the dominant weak pattern plus concrete
+        suggestions, both empty when the password already scores above
+        2), and the ordered sequence of matched patterns (dictionary,
+        spatial/keyboard, repeat, sequence, date, regex, or bruteforce)
+        that the score was built from. Optional user_inputs (site name,
+        username, email, real name, etc.) are folded in as a bonus
+        dictionary the same way zxcvbn's own CLI/browser build does.
+        password is bounded to 256 bytes and user_inputs to 20 entries of
+        256 bytes each; an empty password, an oversized password, or an
+        oversized user_inputs list returns a structured error (in `error`)
+        rather than a crash or a silently-truncated analysis. Deterministic
+        for a given input — same password, same score, every run. Never
+        transmits, logs, or persists the password; used only in-memory for
+        this one computation.
+      input: PasswordCheckInput
+      output: PasswordStrengthReport
+    - name: CheckPolicy
+      description: >-
+        Pass/fail password-policy gate for a signup or password-change
+        form: runs the same zxcvbn analysis as EstimateStrength and
+        compares the resulting score against min_score (0-4). Returns
+        meets_policy (true iff score >= min_score), the score itself, the
+        threshold echoed back, and — when the policy is not met — the
+        single most actionable reason (zxcvbn's warning, or its first
+        suggestion if there is no warning) so a form can show one clear
+        message instead of the full pattern breakdown. min_score of 0
+        accepts every password (a no-op policy); a min_score outside 0-4,
+        an empty password, or an oversized password/user_inputs list
+        returns a structured error (in `error`) instead of a crash. Same
+        bounds and determinism guarantees as EstimateStrength; never
+        transmits, logs, or persists the password.
+      input: PasswordPolicyInput
+      output: PasswordPolicyResult

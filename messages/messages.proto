@@ -1,0 +1,190 @@
+// This file defines the data contracts (messages) for your Axiom package.
+// Every node's --input and --output refers to a message defined here.
+//
+// Run `axiom create message <Name>` to scaffold a new message below.
+// Run `axiom generate` to compile these definitions into language bindings in gen/.
+//
+// DOCUMENTATION
+//   Comments written directly above a message or field declaration are extracted
+//   automatically at publish time and shown in the Axiom registry as documentation.
+//   Write your descriptions there — no separate doc files needed.
+//
+//   Leading comment  (no blank line before the declaration) → registry description ✓
+//   Detached comment (blank line before the declaration)    → ignored by registry  ✗
+//
+// This file is yours to edit. Axiom only appends new message blocks — it never
+// overwrites or removes content you have written.
+
+syntax = "proto3";
+
+package christiangeorgelucas.password_strength_tools;
+
+// ── Shared request envelope ───────────────────────────────────────────────
+
+// Input shared by both nodes: the candidate password plus optional
+// user-context words (site name, username, email local-part, first/last
+// name, etc.) that zxcvbn treats as an extra dictionary — a password that
+// reuses one of these is scored weaker. `password` is bounded to 256 bytes
+// and `user_inputs` to 20 entries of 256 bytes each; anything larger returns
+// a structured error rather than being silently truncated. This node never
+// transmits, logs, or persists `password` — it is used only in-memory for
+// the single deterministic computation below.
+message PasswordCheckInput {
+  // The candidate password to analyze. Required, non-empty, <= 256 bytes.
+  string password = 1;
+  // Optional user-context words (site/app name, username, email, names).
+  // Each treated as a bonus dictionary entry lowering the score of a
+  // password that contains it. At most 20 entries, each <= 256 bytes.
+  repeated string user_inputs = 2;
+}
+
+// ── EstimateStrength ───────────────────────────────────────────────────────
+
+// One crack-time scenario: the estimated seconds an attacker with a given
+// guess rate needs, plus a human-readable rendering ("3 hours", "centuries").
+message CrackTimeScenario {
+  // Estimated seconds to guess the password under this attack scenario.
+  double seconds = 1;
+  // Human-readable rendering of `seconds` (e.g. "instant", "3 hours",
+  // "centuries").
+  string display = 2;
+}
+
+// Crack-time estimates across the four canonical zxcvbn attack scenarios.
+message CrackTimeEstimates {
+  // An online attack throttled to 100 guesses/hour (a rate-limited login
+  // form).
+  CrackTimeScenario online_throttling_100_per_hour = 1;
+  // An online attack with no throttling, 10 guesses/second.
+  CrackTimeScenario online_no_throttling_10_per_second = 2;
+  // An offline attack against a slow, salted hash (bcrypt/scrypt/argon2/
+  // PBKDF2-class), 10^4 guesses/second.
+  CrackTimeScenario offline_slow_hashing_1e4_per_second = 3;
+  // An offline attack against a fast, unsalted hash (raw MD5/SHA-class or
+  // GPU cracking), 10^10 guesses/second.
+  CrackTimeScenario offline_fast_hashing_1e10_per_second = 4;
+}
+
+// Actionable feedback: why the password is weak (if it is) and how to
+// improve it. Both fields are empty when the password scores strong (> 2).
+message PasswordFeedback {
+  // A specific warning about the dominant weak pattern found, or empty if
+  // none applies.
+  string warning = 1;
+  // Concrete suggestions to strengthen the password. Empty when the
+  // password already scores strong.
+  repeated string suggestions = 2;
+}
+
+// One matched pattern from zxcvbn's pattern-matching pass — the span of the
+// password it covers, which matcher found it, and that match's own guess
+// estimate. Fields below `guesses` are populated only for the pattern kinds
+// they apply to (empty string / zero otherwise) — see `pattern`.
+message MatchedPattern {
+  // Which matcher produced this match: "dictionary", "spatial", "repeat",
+  // "sequence", "date", "regex", "bruteforce", "separator", or
+  // "wordSequence".
+  string pattern = 1;
+  // 0-based index of the first character of the match within the password.
+  int32 start_index = 2;
+  // 0-based index of the last character of the match within the password
+  // (inclusive).
+  int32 end_index = 3;
+  // The substring of the password this match covers.
+  string token = 4;
+  // This match's own contribution to the total guess estimate.
+  double guesses = 5;
+  // dictionary matches only: which bundled dictionary matched
+  // ("passwords", "englishWords", "surnames", "femaleNames", "maleNames",
+  // "userInputs", etc.).
+  string dictionary_name = 6;
+  // dictionary matches only: the matched word's frequency rank in that
+  // dictionary (1 = most common).
+  int32 rank = 7;
+  // dictionary matches only: true if the match required l33t-speak
+  // substitution (e.g. "p4ssw0rd" -> "password").
+  bool l33t = 8;
+  // dictionary matches only: true if the dictionary word was matched
+  // reversed (e.g. "drowssap" -> "password").
+  bool reversed = 9;
+  // sequence matches only: the sequence family matched (e.g. "lower",
+  // "digits", "upper").
+  string sequence_name = 10;
+  // sequence matches only: true if the sequence runs forward (ascending),
+  // e.g. "abcd" vs "dcba".
+  bool ascending = 11;
+  // repeat matches only: how many times the base token repeats.
+  int32 repeat_count = 12;
+  // date matches only: the matched 4-digit year, or 0 if none/ambiguous.
+  int32 date_year = 13;
+  // date matches only: the matched month (1-12).
+  int32 date_month = 14;
+  // date matches only: the matched day of month (1-31).
+  int32 date_day = 15;
+  // dictionary matches only: the canonical dictionary word matched (may
+  // differ from `token` when the match required l33t substitution or
+  // reversal).
+  string matched_word = 16;
+}
+
+// Full zxcvbn strength report for one password.
+message PasswordStrengthReport {
+  // Strength score from 0 (weakest) to 4 (strongest): 0 "too guessable",
+  // 1 "very guessable", 2 "somewhat guessable", 3 "safely unguessable"
+  // (assuming a slow, salted hash), 4 "very unguessable".
+  int32 score = 1;
+  // Estimated total guesses an attacker needs to find this password.
+  double guesses = 2;
+  // Base-10 logarithm of `guesses` (more convenient for comparing across a
+  // wide dynamic range).
+  double guesses_log10 = 3;
+  // Crack-time estimates across the four canonical attack scenarios.
+  CrackTimeEstimates crack_times = 4;
+  // Actionable feedback (warning + suggestions), empty when the password
+  // already scores strong.
+  PasswordFeedback feedback = 5;
+  // The ordered pattern matches zxcvbn found across the password (may span
+  // the whole password as a single "bruteforce" match when nothing else
+  // matched).
+  repeated MatchedPattern sequence = 6;
+  // Wall-clock milliseconds the underlying zxcvbn computation took.
+  double calc_time_ms = 7;
+  // Stable error token on failure (EMPTY_PASSWORD, PASSWORD_TOO_LONG,
+  // TOO_MANY_USER_INPUTS, USER_INPUT_TOO_LONG); empty on success. All other
+  // fields are zero-valued when this is set.
+  string error = 8;
+}
+
+// ── CheckPolicy ────────────────────────────────────────────────────────────
+
+// Input for the CheckPolicy node: a password plus the minimum acceptable
+// zxcvbn score for a password-gate decision (e.g. a signup or
+// password-change form rejecting weak passwords).
+message PasswordPolicyInput {
+  // The candidate password to analyze. Required, non-empty, <= 256 bytes.
+  string password = 1;
+  // Optional user-context words, same semantics as PasswordCheckInput.
+  repeated string user_inputs = 2;
+  // Minimum acceptable score (0-4) for `meets_policy` to be true. 0 accepts
+  // every password (a no-op policy); values outside 0-4 return an error.
+  int32 min_score = 3;
+}
+
+// The pass/fail policy decision plus enough context to explain it, without
+// the full pattern breakdown of PasswordStrengthReport.
+message PasswordPolicyResult {
+  // True iff `score` >= `min_score`.
+  bool meets_policy = 1;
+  // The password's zxcvbn score (0-4).
+  int32 score = 2;
+  // The `min_score` threshold this was checked against, echoed back.
+  int32 min_score = 3;
+  // The single most actionable reason the password failed the policy (the
+  // zxcvbn warning, or its first suggestion if there is no warning); empty
+  // when the policy is met.
+  string reason = 4;
+  // Stable error token on failure (EMPTY_PASSWORD, PASSWORD_TOO_LONG,
+  // TOO_MANY_USER_INPUTS, USER_INPUT_TOO_LONG, INVALID_MIN_SCORE); empty on
+  // success.
+  string error = 5;
+}
