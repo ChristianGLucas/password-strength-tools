@@ -1,0 +1,25 @@
+name: policy-then-hash
+description: A realistic signup-form pipeline — gate a candidate password against a minimum zxcvbn score with CheckPolicy, then (independently) hash the same password with hash-tools' Hash node for storage. Demonstrates password-strength-tools composing with a neighboring package in one flow. CheckPolicy never echoes the raw password back (by design — it only reports the policy decision), so the literal password is fed to both nodes via CEL constants, the same pattern hash-tools' own hash-then-verify.flow.yaml uses.
+
+# Run it (the start node — checker — takes its input via -d):
+#   axiom flow compile flows/policy-then-hash.flow.yaml
+#   axiom flow run <artifact-id> -d '{"password":"correcthorsebatterystaple","minScore":3}'
+# Expect checker.meetsPolicy = true and hasher.hex = the sha256 of the same
+# literal password.
+
+nodes:
+  - alias: checker
+    package: christiangeorgelucas/password-strength-tools@0.1.0
+    node: CheckPolicy
+  - alias: hasher
+    package: christiangeorgelucas/hash-tools@0.1.0
+    node: Hash
+
+edges:
+  - from: checker
+    to: hasher
+    adapter:
+      # The password never appears in CheckPolicy's output (by design), so
+      # the same literal it was checked with is what gets hashed here.
+      "'correcthorsebatterystaple'": data
+      "'sha256'": algorithm
