@@ -19,7 +19,7 @@ export async function checkPolicy(ax: AxiomContext, input: PasswordPolicyInput):
   const result = new PasswordPolicyResult();
   result.setMinScore(minScore);
 
-  const validationError = validateInput(password, userInputs);
+  const validationError = validateInput(password);
   if (validationError) {
     result.setError(validationError);
     return result;

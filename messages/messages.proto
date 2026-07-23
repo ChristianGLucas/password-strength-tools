@@ -24,17 +24,16 @@ package christiangeorgelucas.password_strength_tools;
 // Input shared by both nodes: the candidate password plus optional
 // user-context words (site name, username, email local-part, first/last
 // name, etc.) that zxcvbn treats as an extra dictionary — a password that
-// reuses one of these is scored weaker. `password` is bounded to 256 bytes
-// and `user_inputs` to 20 entries of 256 bytes each; anything larger returns
-// a structured error rather than being silently truncated. This node never
-// transmits, logs, or persists `password` — it is used only in-memory for
-// the single deterministic computation below.
+// reuses one of these is scored weaker. An empty password returns a
+// structured error rather than being scored. This node never transmits,
+// logs, or persists `password` — it is used only in-memory for the single
+// deterministic computation below.
 message PasswordCheckInput {
-  // The candidate password to analyze. Required, non-empty, <= 256 bytes.
+  // The candidate password to analyze. Required, non-empty.
   string password = 1;
   // Optional user-context words (site/app name, username, email, names).
   // Each treated as a bonus dictionary entry lowering the score of a
-  // password that contains it. At most 20 entries, each <= 256 bytes.
+  // password that contains it.
   repeated string user_inputs = 2;
 }
 
@@ -149,9 +148,8 @@ message PasswordStrengthReport {
   repeated MatchedPattern sequence = 6;
   // Wall-clock milliseconds the underlying zxcvbn computation took.
   double calc_time_ms = 7;
-  // Stable error token on failure (EMPTY_PASSWORD, PASSWORD_TOO_LONG,
-  // TOO_MANY_USER_INPUTS, USER_INPUT_TOO_LONG); empty on success. All other
-  // fields are zero-valued when this is set.
+  // Stable error token on failure (EMPTY_PASSWORD); empty on success. All
+  // other fields are zero-valued when this is set.
   string error = 8;
 }
 
@@ -161,7 +159,7 @@ message PasswordStrengthReport {
 // zxcvbn score for a password-gate decision (e.g. a signup or
 // password-change form rejecting weak passwords).
 message PasswordPolicyInput {
-  // The candidate password to analyze. Required, non-empty, <= 256 bytes.
+  // The candidate password to analyze. Required, non-empty.
   string password = 1;
   // Optional user-context words, same semantics as PasswordCheckInput.
   repeated string user_inputs = 2;
@@ -183,8 +181,7 @@ message PasswordPolicyResult {
   // zxcvbn warning, or its first suggestion if there is no warning); empty
   // when the policy is met.
   string reason = 4;
-  // Stable error token on failure (EMPTY_PASSWORD, PASSWORD_TOO_LONG,
-  // TOO_MANY_USER_INPUTS, USER_INPUT_TOO_LONG, INVALID_MIN_SCORE); empty on
-  // success.
+  // Stable error token on failure (EMPTY_PASSWORD, INVALID_MIN_SCORE); empty
+  // on success.
   string error = 5;
 }

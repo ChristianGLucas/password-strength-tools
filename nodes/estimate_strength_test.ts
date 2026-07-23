@@ -1,7 +1,6 @@
 import { PasswordCheckInput } from '../gen/messages_pb';
 import { estimateStrength } from './estimate_strength';
 import { ctx } from './testkit';
-import { MAX_PASSWORD_BYTES, MAX_USER_INPUTS, MAX_USER_INPUT_BYTES } from './zxcvbn_helper';
 
 function req(password: string, userInputs: string[] = []): PasswordCheckInput {
   const input = new PasswordCheckInput();
@@ -117,38 +116,5 @@ describe('EstimateStrength', () => {
     expect(out.getError()).toBe('EMPTY_PASSWORD');
     expect(out.getScore()).toBe(0);
     expect(out.getSequenceList()).toHaveLength(0);
-  });
-
-  it('ERROR PATH: a password over the byte bound returns PASSWORD_TOO_LONG', async () => {
-    const tooLong = 'a'.repeat(MAX_PASSWORD_BYTES + 1);
-    const out = await estimateStrength(ctx, req(tooLong));
-    expect(out.getError()).toBe('PASSWORD_TOO_LONG');
-  });
-
-  it('BOUNDARY: a password at exactly the byte bound succeeds', async () => {
-    const atBound = 'a'.repeat(MAX_PASSWORD_BYTES);
-    const out = await estimateStrength(ctx, req(atBound));
-    expect(out.getError()).toBe('');
-  });
-
-  it('ERROR PATH: more than MAX_USER_INPUTS entries returns TOO_MANY_USER_INPUTS', async () => {
-    const tooMany = Array.from({ length: MAX_USER_INPUTS + 1 }, (_, i) => `word${i}`);
-    const out = await estimateStrength(ctx, req('somePassword1!', tooMany));
-    expect(out.getError()).toBe('TOO_MANY_USER_INPUTS');
-  });
-
-  it('ERROR PATH: an oversized single user_input returns USER_INPUT_TOO_LONG', async () => {
-    const out = await estimateStrength(ctx, req('somePassword1!', ['x'.repeat(MAX_USER_INPUT_BYTES + 1)]));
-    expect(out.getError()).toBe('USER_INPUT_TOO_LONG');
-  });
-
-  it('a multi-byte UTF-8 password is bounded by bytes, not characters', async () => {
-    // Each "\u{1F600}" grinning-face emoji is 4 bytes in UTF-8; 65 of them
-    // is 260 bytes, over the 256-byte bound, while well under 256 UTF-16
-    // code units — proving the bound is byte-based, not length-based.
-    const emojiPassword = '\u{1F600}'.repeat(65);
-    expect(emojiPassword.length).toBeLessThan(MAX_PASSWORD_BYTES);
-    const out = await estimateStrength(ctx, req(emojiPassword));
-    expect(out.getError()).toBe('PASSWORD_TOO_LONG');
   });
 });

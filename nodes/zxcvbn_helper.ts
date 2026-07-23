@@ -1,7 +1,7 @@
 // Shared helper for both nodes: engine setup (loaded once, at module init, so
-// dictionaries are compiled a single time per cold start — not per request),
-// input bounds, and the mapping from zxcvbn-ts's plain result object into the
-// generated protobuf message types.
+// dictionaries are compiled a single time per cold start — not per request)
+// and the mapping from zxcvbn-ts's plain result object into the generated
+// protobuf message types.
 //
 // This module never logs, transmits, or persists a password — it is passed
 // straight into zxcvbn-ts's in-memory computation and the result is mapped
@@ -17,15 +17,7 @@ import {
   PasswordFeedback,
 } from '../gen/messages_pb';
 
-export const MAX_PASSWORD_BYTES = 256;
-export const MAX_USER_INPUTS = 20;
-export const MAX_USER_INPUT_BYTES = 256;
-
-export type ValidationErrorToken =
-  | 'EMPTY_PASSWORD'
-  | 'PASSWORD_TOO_LONG'
-  | 'TOO_MANY_USER_INPUTS'
-  | 'USER_INPUT_TOO_LONG';
+export type ValidationErrorToken = 'EMPTY_PASSWORD';
 
 const options: OptionsType = {
   dictionary: {
@@ -41,29 +33,12 @@ const options: OptionsType = {
 // reusing one instance across invocations avoids redoing that work per call.
 const zxcvbnEngine = new ZxcvbnFactory(options);
 
-// Bound every dimension the caller controls BEFORE it reaches the matcher —
-// password length drives dictionary/spatial/repeat matching cost, and
-// user_inputs count/length drives the size of the bonus dictionary built
-// per call. Reject explicitly rather than silently truncating (zxcvbn-ts's
-// own default `maxLength` truncates to 256 chars and scores the truncated
-// password, which would silently misrepresent a longer password as safe).
-export function validateInput(
-  password: string,
-  userInputs: string[],
-): ValidationErrorToken | null {
+// The only domain-invalid input: an empty password has no strength to
+// estimate. Everything else about size/resource cost is the platform's
+// concern, not this node's.
+export function validateInput(password: string): ValidationErrorToken | null {
   if (!password) {
     return 'EMPTY_PASSWORD';
-  }
-  if (Buffer.byteLength(password, 'utf8') > MAX_PASSWORD_BYTES) {
-    return 'PASSWORD_TOO_LONG';
-  }
-  if (userInputs.length > MAX_USER_INPUTS) {
-    return 'TOO_MANY_USER_INPUTS';
-  }
-  for (const userInput of userInputs) {
-    if (Buffer.byteLength(userInput, 'utf8') > MAX_USER_INPUT_BYTES) {
-      return 'USER_INPUT_TOO_LONG';
-    }
   }
   return null;
 }

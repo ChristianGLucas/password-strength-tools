@@ -22,7 +22,7 @@ export async function estimateStrength(ax: AxiomContext, input: PasswordCheckInp
   const password = input.getPassword();
   const userInputs = input.getUserInputsList();
 
-  const validationError = validateInput(password, userInputs);
+  const validationError = validateInput(password);
   if (validationError) {
     const report = new PasswordStrengthReport();
     report.setError(validationError);

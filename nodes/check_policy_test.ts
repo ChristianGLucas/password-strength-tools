@@ -1,7 +1,6 @@
 import { PasswordPolicyInput } from '../gen/messages_pb';
 import { checkPolicy } from './check_policy';
 import { ctx } from './testkit';
-import { MAX_PASSWORD_BYTES } from './zxcvbn_helper';
 
 function req(password: string, minScore: number, userInputs: string[] = []): PasswordPolicyInput {
   const input = new PasswordPolicyInput();
@@ -64,11 +63,6 @@ describe('CheckPolicy', () => {
     const out = await checkPolicy(ctx, req('', 3));
     expect(out.getError()).toBe('EMPTY_PASSWORD');
     expect(out.getMeetsPolicy()).toBe(false);
-  });
-
-  it('ERROR PATH: an over-bound password returns PASSWORD_TOO_LONG', async () => {
-    const out = await checkPolicy(ctx, req('a'.repeat(MAX_PASSWORD_BYTES + 1), 3));
-    expect(out.getError()).toBe('PASSWORD_TOO_LONG');
   });
 
   it('ERROR PATH: min_score above 4 returns INVALID_MIN_SCORE', async () => {

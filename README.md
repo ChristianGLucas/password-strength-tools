@@ -30,10 +30,9 @@ name, username, or email), these nodes return:
 | `EstimateStrength` | Full strength report for one password: score, guesses, crack times, feedback, and the matched-pattern sequence. |
 | `CheckPolicy` | Pass/fail policy gate for a signup or password-change form: same analysis, compared against a `min_score` threshold, returning `meets_policy` plus one actionable `reason`. |
 
-Both nodes share a `password` (required, ≤ 256 bytes) + `user_inputs`
-(optional, ≤ 20 entries of ≤ 256 bytes each) request shape. Oversized or
-empty input returns a structured `error` token instead of a crash or a
-silently-truncated analysis.
+Both nodes share a `password` (required, non-empty) + `user_inputs`
+(optional) request shape. An empty password returns a structured `error`
+token instead of a crash.
 
 ## What this is NOT
 

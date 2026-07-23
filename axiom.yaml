@@ -1,5 +1,5 @@
 name: christiangeorgelucas/password-strength-tools
-version: 0.1.0
+version: 0.1.1
 language: typescript
 description: >-
   Composable Axiom password-strength-estimation nodes wrapping the MIT
@@ -41,13 +41,10 @@ nodes:
         that the score was built from. Optional user_inputs (site name,
         username, email, real name, etc.) are folded in as a bonus
         dictionary the same way zxcvbn's own CLI/browser build does.
-        password is bounded to 256 bytes and user_inputs to 20 entries of
-        256 bytes each; an empty password, an oversized password, or an
-        oversized user_inputs list returns a structured error (in `error`)
-        rather than a crash or a silently-truncated analysis. Deterministic
-        for a given input — same password, same score, every run. Never
-        transmits, logs, or persists the password; used only in-memory for
-        this one computation.
+        An empty password returns a structured error (in `error`) rather
+        than a crash. Deterministic for a given input — same password,
+        same score, every run. Never transmits, logs, or persists the
+        password; used only in-memory for this one computation.
       input: PasswordCheckInput
       output: PasswordStrengthReport
     - name: CheckPolicy
@@ -60,10 +57,9 @@ nodes:
         single most actionable reason (zxcvbn's warning, or its first
         suggestion if there is no warning) so a form can show one clear
         message instead of the full pattern breakdown. min_score of 0
-        accepts every password (a no-op policy); a min_score outside 0-4,
-        an empty password, or an oversized password/user_inputs list
-        returns a structured error (in `error`) instead of a crash. Same
-        bounds and determinism guarantees as EstimateStrength; never
-        transmits, logs, or persists the password.
+        accepts every password (a no-op policy); a min_score outside 0-4
+        or an empty password returns a structured error (in `error`)
+        instead of a crash. Same determinism guarantees as
+        EstimateStrength; never transmits, logs, or persists the password.
       input: PasswordPolicyInput
       output: PasswordPolicyResult
