@@ -1,6 +1,6 @@
 # password-strength-tools
 
-Composable [Axiom](https://axiom.co) nodes for realistic password-strength
+Composable [Axiom](https://axiomide.com) nodes for realistic password-strength
 estimation, wrapping the MIT-licensed
 [`zxcvbn-ts`](https://github.com/zxcvbn-ts/zxcvbn) library — a maintained
 TypeScript rewrite of Dropbox's original `zxcvbn` algorithm.
